@@ -372,7 +372,9 @@ public abstract class DashClockRenderer {
         if (convertRoot != null) {
             vb.useRoot(convertRoot);
         } else {
-            vb.loadRootLayout(container, R.layout.widget_list_item_expanded_extension);
+            int layoutId = (AppearanceConfig.PREF_FONT_LIGHT.equals(mOptions.font)) ?
+                    R.layout.widget_list_item_expanded_extension : R.layout.widget_list_item_expanded_extension_condensed;
+            vb.loadRootLayout(container, layoutId);
         }
 
         if (ewd == null || ewd.latestData == null) {
@@ -446,6 +448,9 @@ public abstract class DashClockRenderer {
         public boolean newTaskOnClick;
         public OnClickListener onClickListener;
         public Intent clickIntentTemplate;
+
+        // Font preferences
+        public String font = AppearanceConfig.PREF_FONT_LIGHT;
     }
 
     public static interface OnClickListener {
