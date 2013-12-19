@@ -65,6 +65,8 @@ public class ConfigureAdvancedFragment extends PreferenceFragment
                 findPreference(AppearanceConfig.PREF_HOMESCREEN_BACKGROUND_OPACITY));
         BaseSettingsActivity.bindPreferenceSummaryToValue(
                 findPreference(AppearanceConfig.PREF_LOCKSCREEN_BACKGROUND_OPACITY));
+        BaseSettingsActivity.bindPreferenceSummaryToValue(
+                findPreference(AppearanceConfig.PREF_FONT));
     }
 
     @Override
