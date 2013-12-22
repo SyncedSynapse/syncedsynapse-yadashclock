@@ -139,6 +139,7 @@
     </string-array>
     <string name="pref_daydream_system_settings_title">System Daydream settings</string>
 
+    <!-- AMSILVA Added preferences -->
     <!-- Font preferences -->
     <string name="pref_font_title">Font</string>
     <string-array name="pref_font_display_names">
@@ -149,5 +150,8 @@
         <item>light</item>
         <item>condensed</item>
     </string-array>
+
+    <string name="pref_background_color_title">Background color</string>
+    <string name="pref_background_color_description">The color of the background</string>
 
 </resources>

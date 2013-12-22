@@ -19,6 +19,7 @@ repositories {
 dependencies {
     compile 'com.android.support:support-v13:18.0.0'
     compile 'com.mobeta.android.dslv:drag-sort-listview:0.6.1-SNAPSHOT-AAR'
+    compile 'com.larswerkman:HoloColorPicker:1.2-SNAPSHOT'
     compile project(':api')
 }
 
