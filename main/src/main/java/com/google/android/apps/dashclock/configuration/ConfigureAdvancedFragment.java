@@ -63,6 +63,8 @@ public class ConfigureAdvancedFragment extends PreferenceFragment
                 findPreference(DashClockRenderer.PREF_CLOCK_SHORTCUT));
         BaseSettingsActivity.bindPreferenceSummaryToValue(
                 findPreference(AppearanceConfig.PREF_FONT));
+        BaseSettingsActivity.bindPreferenceSummaryToValue(
+                findPreference(AppearanceConfig.PREF_TEXT_DENSITY));
     }
 
     @Override
