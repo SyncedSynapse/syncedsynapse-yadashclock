@@ -72,6 +72,12 @@
             android:summary="@string/pref_hide_clock_description"
             android:defaultValue="false" />
 
+        <CheckBoxPreference
+            android:key="pref_homescreen_show_separator"
+            android:title="@string/pref_show_separator_title"
+            android:summary="@string/pref_show_separator_description"
+            android:defaultValue="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/pref_lockscreen_title">
@@ -109,6 +115,12 @@
             android:key="pref_lockscreen_hide_clock"
             android:title="@string/pref_hide_clock_title"
             android:summary="@string/pref_hide_clock_description"
+            android:defaultValue="false" />
+
+        <CheckBoxPreference
+            android:key="pref_lockscreen_show_separator"
+            android:title="@string/pref_show_separator_title"
+            android:summary="@string/pref_show_separator_description"
             android:defaultValue="false" />
 
     </PreferenceCategory>
