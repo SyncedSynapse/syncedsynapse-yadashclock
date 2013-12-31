@@ -39,7 +39,7 @@ dependencies {
     compile 'com.google.android.gms:play-services:4.0.30'
     //compile 'com.mobeta.android.dslv:drag-sort-listview:0.6.1-SNAPSHOT-AAR'
     compile 'com.mobeta.android.dslv:drag-sort-listview:0.6.1-SNAPSHOT-AAR@aar'
-    compile 'com.larswerkman:HoloColorPicker:1.2-SNAPSHOT@aar'
+    compile 'com.larswerkman:holocolorpicker:1.2-SNAPSHOT@aar'
     compile project(':api')
 }
 
