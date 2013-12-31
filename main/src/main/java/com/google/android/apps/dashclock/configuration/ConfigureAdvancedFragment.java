@@ -62,11 +62,9 @@ public class ConfigureAdvancedFragment extends PreferenceFragment
         BaseSettingsActivity.bindPreferenceSummaryToValue(
                 findPreference(DashClockRenderer.PREF_CLOCK_SHORTCUT));
         BaseSettingsActivity.bindPreferenceSummaryToValue(
-                findPreference(AppearanceConfig.PREF_HOMESCREEN_BACKGROUND_OPACITY));
-        BaseSettingsActivity.bindPreferenceSummaryToValue(
-                findPreference(AppearanceConfig.PREF_LOCKSCREEN_BACKGROUND_OPACITY));
-        BaseSettingsActivity.bindPreferenceSummaryToValue(
                 findPreference(AppearanceConfig.PREF_FONT));
+        BaseSettingsActivity.bindPreferenceSummaryToValue(
+                findPreference(AppearanceConfig.PREF_TEXT_DENSITY));
     }
 
     @Override

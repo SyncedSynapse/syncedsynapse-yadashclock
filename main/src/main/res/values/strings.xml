@@ -172,4 +172,9 @@
         Try them out by adding a few extensions below.
     </string>
 
+    <!-- Color picker strings -->
+    <string name="transparency">Opacity</string>
+    <string name="color_value">Color code</string>
+    <string name="color_values_msg">Color codes in ARGB format\nAA (Alpha) RR (Red) GG (Green) BB (Blue)</string>
+
 </resources>
