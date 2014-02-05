@@ -106,21 +106,23 @@ public abstract class DashClockRenderer {
         //vb.setViewBackgroundColor(R.id.shade, shadeColor);
         //vb.setViewVisibility(R.id.shade, shadeColor == 0 ? View.GONE : View.VISIBLE);
 
-        // Step 2. Set the clock shading and show/hide the separator
-        vb.setViewBackgroundColor(R.id.clock_row, mOptions.backgroundColor);
-        if (mOptions.showSeparator) {
-            vb.setViewVisibility(R.id.card_shadow, View.VISIBLE);
-        } else {
-            vb.setViewVisibility(R.id.card_shadow, View.GONE);
-        }
-
-        // Step 3. Draw the basic clock face
         boolean hideSettings;
         boolean hideClock =
                 (mOptions.target == Options.TARGET_HOME_SCREEN
-                        && AppearanceConfig.isClockHiddenOnHomeScreen(mContext))
+                 && AppearanceConfig.isClockHiddenOnHomeScreen(mContext))
                 || (mOptions.target == Options.TARGET_LOCK_SCREEN
-                        && AppearanceConfig.isClockHiddenOnLockScreen(mContext));
+                    && AppearanceConfig.isClockHiddenOnLockScreen(mContext));
+
+        // Step 2. Set the clock shading and show/hide the separator
+        vb.setViewBackgroundColor(R.id.clock_row, mOptions.backgroundColor);
+        if (!mOptions.showSeparator ||
+            (isExpanded && hideClock) || (!isExpanded && hideClock && (activeExtensions == 0))) {
+            vb.setViewVisibility(R.id.card_shadow, View.GONE);
+        } else {
+            vb.setViewVisibility(R.id.card_shadow, View.VISIBLE);
+        }
+
+        // Step 3. Draw the basic clock face
         vb.setViewVisibility(R.id.clock_target, hideClock ? View.GONE : View.VISIBLE);
         if (hideClock) {
             hideSettings = true;
