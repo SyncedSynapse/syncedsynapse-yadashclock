@@ -77,7 +77,18 @@
                 android:layout_alignStart="@android:id/text1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textAppearance="?android:textAppearanceSmall" />
+                android:textAppearance="?android:textAppearanceSmall"/>
+
+            <CheckBox
+                android:id="@android:id/checkbox"
+                android:layout_below="@android:id/text2"
+                android:layout_alignEnd="@android:id/text2"
+                android:layout_alignStart="@android:id/text2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:textAppearanceSmall"
+                android:textColor="?android:textColorSecondary"
+                android:text="@string/always_collapsed"/>
 
         </RelativeLayout>
 

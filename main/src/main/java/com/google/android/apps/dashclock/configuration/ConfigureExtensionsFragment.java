@@ -44,6 +44,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
+import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.PopupMenu;
@@ -51,6 +52,7 @@ import android.widget.TextView;
 
 import com.google.android.apps.dashclock.ExtensionHost;
 import com.google.android.apps.dashclock.ExtensionManager;
+import com.google.android.apps.dashclock.LogUtils;
 import com.google.android.apps.dashclock.Utils;
 import com.google.android.apps.dashclock.api.DashClockExtension;
 import com.google.android.apps.dashclock.ui.SwipeDismissListViewTouchListener;
@@ -60,6 +62,10 @@ import com.mobeta.android.dslv.DragSortController;
 import com.mobeta.android.dslv.DragSortListView;
 
 import net.nurik.roman.dashclock.R;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -71,6 +77,9 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.google.android.apps.dashclock.ExtensionManager.ExtensionListing;
+import static com.google.android.apps.dashclock.LogUtils.LOGD;
+import static com.google.android.apps.dashclock.LogUtils.LOGE;
+import static com.google.android.apps.dashclock.LogUtils.LOGW;
 
 /**
  * Fragment for allowing the user to configure active extensions, shown within a {@link
@@ -80,12 +89,18 @@ public class ConfigureExtensionsFragment extends Fragment implements
         ExtensionManager.OnChangeListener,
         AdapterView.OnItemClickListener,
         UndoBarController.UndoListener {
+    private static final String TAG = LogUtils.makeLogTag(ConfigureExtensionsFragment.class);
+
     private static final String SAVE_KEY_SELECTED_EXTENSIONS = "selected_extensions";
+    private static final String SAVE_KEY_EXTENSIONS_RENDER_OPTIONS = "extensions_render_options";
 
     private ExtensionManager mExtensionManager;
 
     private List<ComponentName> mSelectedExtensions = new ArrayList<ComponentName>();
     private ExtensionListAdapter mSelectedExtensionsAdapter;
+
+    private Map<ComponentName, ExtensionManager.ExtensionRenderOptions> mSelectedExtensionsRenderOptions
+            = new HashMap<ComponentName, ExtensionManager.ExtensionRenderOptions>();
 
     private Map<ComponentName, ExtensionManager.ExtensionListing> mExtensionListings
             = new HashMap<ComponentName, ExtensionManager.ExtensionListing>();
@@ -116,12 +131,33 @@ public class ConfigureExtensionsFragment extends Fragment implements
 
         if (savedInstanceState == null) {
             mSelectedExtensions = mExtensionManager.getActiveExtensionNames();
+            mSelectedExtensionsRenderOptions = mExtensionManager.getActiveExtensionsRenderOptions();
         } else {
             List<String> selected = savedInstanceState
                     .getStringArrayList(SAVE_KEY_SELECTED_EXTENSIONS);
-            for (String s : selected) {
-                mSelectedExtensions.add(ComponentName.unflattenFromString(s));
+            List<String> selectedRenderOptions =
+                    savedInstanceState.getStringArrayList(SAVE_KEY_EXTENSIONS_RENDER_OPTIONS);
+            if (selected != null) {
+                for (int i = 0; i < selected.size(); ++i) {
+                    ComponentName cn = ComponentName.unflattenFromString(selected.get(i));
+                    mSelectedExtensions.add(cn);
+
+                    // Load render options
+                    // Caution: we are assuming these were saved in the same order as the extensions
+                    ExtensionManager.ExtensionRenderOptions renderOptions =
+                            new ExtensionManager.ExtensionRenderOptions();
+                    if (selectedRenderOptions != null) {
+                        String jsonObj = selectedRenderOptions.get(i);
+                        try {
+                            renderOptions.deserialize((JSONObject) new JSONTokener(jsonObj).nextValue());
+                        } catch (JSONException e) {
+                            LOGE(TAG, "Error loading extension options for " + cn + ".", e);
+                        }
+                    }
+                    mSelectedExtensionsRenderOptions.put(cn, renderOptions);
+                }
             }
+
         }
 
         mSelectedExtensionsAdapter = new ExtensionListAdapter();
@@ -208,7 +244,7 @@ public class ConfigureExtensionsFragment extends Fragment implements
     @Override
     public void onPause() {
         super.onPause();
-        mExtensionManager.setActiveExtensions(mSelectedExtensions);
+        mExtensionManager.setActiveExtensions(mSelectedExtensions, mSelectedExtensionsRenderOptions);
     }
 
     @Override
@@ -222,10 +258,22 @@ public class ConfigureExtensionsFragment extends Fragment implements
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         ArrayList<String> selectedExtensions = new ArrayList<String>();
+        ArrayList<String> selectedExtensionsRenderOptions = new ArrayList<String>();
         for (ComponentName cn : mSelectedExtensions) {
             selectedExtensions.add(cn.flattenToString());
+
+            // Save render options in the same order
+            ExtensionManager.ExtensionRenderOptions renderOptions = mSelectedExtensionsRenderOptions.get(cn);
+            if (renderOptions != null) {
+                try {
+                    selectedExtensionsRenderOptions.add(renderOptions.serialize().toString());
+                } catch (JSONException e) {
+                    LOGE(TAG, "Error sanving extension options for " + cn + ".", e);
+                }
+            }
         }
         outState.putStringArrayList(SAVE_KEY_SELECTED_EXTENSIONS, selectedExtensions);
+        outState.putStringArrayList(SAVE_KEY_EXTENSIONS_RENDER_OPTIONS, selectedExtensionsRenderOptions);
         if (mUndoBarController != null) {
             mUndoBarController.onSaveInstanceState(outState);
         }
@@ -448,13 +496,25 @@ public class ConfigureExtensionsFragment extends Fragment implements
         }
 
         ComponentName[] extensions = new ComponentName[reverseSortedPositions.length];
+        String[] jsonRenderOptions = new String[reverseSortedPositions.length];
         for (int i = 0; i < reverseSortedPositions.length; i++) {
             extensions[i] = mSelectedExtensions.get(reverseSortedPositions[i]);
+
+            // Save render options
+            try {
+                ExtensionManager.ExtensionRenderOptions renderOptions = mSelectedExtensionsRenderOptions.get(extensions[i]);
+                if (renderOptions != null) {
+                    jsonRenderOptions[i] = renderOptions.serialize().toString();
+                }
+            } catch (JSONException e) {
+                LOGE(TAG, "Error saving undo options for " + extensions[i] + ".", e);
+            }
         }
 
         Bundle undoBundle = new Bundle();
         undoBundle.putIntArray("positions", reverseSortedPositions);
         undoBundle.putParcelableArray("extensions", extensions);
+        undoBundle.putStringArray("render_options", jsonRenderOptions);
         mUndoBarController.showUndoBar(
                 false,
                 undoString,
@@ -470,9 +530,19 @@ public class ConfigureExtensionsFragment extends Fragment implements
         // Perform the undo
         int[] reverseSortedPositions = token.getIntArray("positions");
         ComponentName[] extensions = (ComponentName[]) token.getParcelableArray("extensions");
+        String[] jsonRenderOptions = (String[])token.getStringArray("render_options");
 
         for (int i = 0; i < reverseSortedPositions.length; i++) {
             mSelectedExtensions.add(reverseSortedPositions[i], extensions[i]);
+
+            String jsonObj = jsonRenderOptions[i];
+            ExtensionManager.ExtensionRenderOptions renderOptions = new ExtensionManager.ExtensionRenderOptions();
+            try {
+                renderOptions.deserialize((JSONObject) new JSONTokener(jsonObj).nextValue());
+            } catch (JSONException e) {
+                LOGE(TAG, "Error loading extension options for " + extensions[i] + ".", e);
+            }
+            mSelectedExtensionsRenderOptions.put(extensions[i], renderOptions);
         }
 
         repopulateAvailableExtensions();
@@ -544,7 +614,7 @@ public class ConfigureExtensionsFragment extends Fragment implements
                 }
 
                 case VIEW_TYPE_ITEM: {
-                    ComponentName cn = (ComponentName) getItem(position);
+                    final ComponentName cn = (ComponentName) getItem(position);
                     if (convertView == null) {
                         convertView = getActivity().getLayoutInflater()
                                 .inflate(R.layout.list_item_extension, parent, false);
@@ -584,6 +654,27 @@ public class ConfigureExtensionsFragment extends Fragment implements
                             }
                         });
                     }
+
+                    final CheckBox alwaysCollapseView = (CheckBox) convertView.findViewById(android.R.id.checkbox);
+                    ExtensionManager.ExtensionRenderOptions renderOptions = mSelectedExtensionsRenderOptions.get(cn);
+                    if (renderOptions != null) {
+                        alwaysCollapseView.setChecked(renderOptions.alwaysCollapsed);
+                    } else {
+                        alwaysCollapseView.setChecked(false);
+                    }
+                    alwaysCollapseView.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            ExtensionManager.ExtensionRenderOptions renderOptions = mSelectedExtensionsRenderOptions.get(cn);
+                            if (renderOptions == null) {
+                                renderOptions = new ExtensionManager.ExtensionRenderOptions();
+                            }
+                            renderOptions.alwaysCollapsed = !renderOptions.alwaysCollapsed;
+                            mSelectedExtensionsRenderOptions.put(cn, renderOptions);
+                            ((CheckBox)v).setChecked(renderOptions.alwaysCollapsed);
+                        }
+                    });
+
                     return convertView;
                 }
             }

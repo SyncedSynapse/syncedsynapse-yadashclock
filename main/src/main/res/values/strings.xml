@@ -177,4 +177,5 @@
     <string name="color_value">Color code</string>
     <string name="color_values_msg">Color codes in ARGB format\nAA (Alpha) RR (Red) GG (Green) BB (Blue)</string>
 
+    <string name="always_collapsed">Collapsed</string>
 </resources>

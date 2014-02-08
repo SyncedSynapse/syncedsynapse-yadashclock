@@ -59,6 +59,7 @@ public class ExtensionManager {
     private static final String TAG = LogUtils.makeLogTag(ExtensionManager.class);
 
     private static final String PREF_ACTIVE_EXTENSIONS = "active_extensions";
+    private static final String PREF_EXTENSION_RENDER_OPTIONS = "extension_render_options";
 
     private static final Class[] DEFAULT_EXTENSIONS = {
             WeatherExtension.class,
@@ -75,6 +76,7 @@ public class ExtensionManager {
 
     private SharedPreferences mDefaultPreferences;
     private SharedPreferences mValuesPreferences;
+    private SharedPreferences mRenderOptionsPreferences;
     private Handler mMainThreadHandler = new Handler(Looper.getMainLooper());
 
     private static ExtensionManager sInstance;
@@ -91,6 +93,7 @@ public class ExtensionManager {
         mApplicationContext = context.getApplicationContext();
         mDefaultPreferences = PreferenceManager.getDefaultSharedPreferences(mApplicationContext);
         mValuesPreferences = mApplicationContext.getSharedPreferences("extension_data", 0);
+        mRenderOptionsPreferences = mApplicationContext.getSharedPreferences(PREF_EXTENSION_RENDER_OPTIONS, 0);
         loadActiveExtensionList();
     }
 
@@ -111,11 +114,14 @@ public class ExtensionManager {
 
         boolean cleanupRequired = false;
         ArrayList<ComponentName> newActiveExtensions = new ArrayList<ComponentName>();
+        Map<ComponentName, ExtensionRenderOptions> newRenderOptionsMap =
+                new HashMap<ComponentName, ExtensionRenderOptions>();
 
         synchronized (mActiveExtensions) {
             for (ExtensionWithData ewd : mActiveExtensions) {
                 if (availableExtensions.contains(ewd.listing.componentName)) {
                     newActiveExtensions.add(ewd.listing.componentName);
+                    newRenderOptionsMap.put(ewd.listing.componentName, ewd.renderOptions);
                 } else {
                     cleanupRequired = true;
                 }
@@ -123,7 +129,7 @@ public class ExtensionManager {
         }
 
         if (cleanupRequired) {
-            setActiveExtensions(newActiveExtensions);
+            setActiveExtensions(newActiveExtensions, newRenderOptionsMap);
             return true;
         }
 
@@ -145,7 +151,23 @@ public class ExtensionManager {
             }
             activeExtensions.add(ComponentName.unflattenFromString(componentNameString));
         }
-        setActiveExtensions(activeExtensions, false);
+
+        // Load render options
+        Map<ComponentName, ExtensionRenderOptions> activeRenderOptions = new HashMap<ComponentName, ExtensionRenderOptions>();
+        for (ComponentName cn : activeExtensions) {
+            ExtensionRenderOptions renderOptions = new ExtensionRenderOptions();
+            String jsonObj = mRenderOptionsPreferences.getString(cn.flattenToString(), null);
+            if (!TextUtils.isEmpty(jsonObj)) {
+                try {
+                    renderOptions.deserialize((JSONObject) new JSONTokener(jsonObj).nextValue());
+                } catch (JSONException e) {
+                    LOGE(TAG, "Error loading extension options for " + cn + ".", e);
+                }
+            }
+            activeRenderOptions.put(cn, renderOptions);
+        }
+
+        setActiveExtensions(activeExtensions, activeRenderOptions, false);
     }
 
     private String createDefaultExtensionList() {
@@ -169,10 +191,21 @@ public class ExtensionManager {
                 if (sb.length() > 0) {
                     sb.append(",");
                 }
-                sb.append(ci.listing.componentName.flattenToString());
+                String cnString = ci.listing.componentName.flattenToString();
+                sb.append(cnString);
+
+                // Save render options
+                try {
+                    ExtensionRenderOptions renderOptions = ci.renderOptions;
+                    if (renderOptions != null) {
+                        String renderOptionsSerialized = renderOptions.serialize().toString();
+                        mRenderOptionsPreferences.edit().putString(cnString, renderOptionsSerialized).commit();
+                    }
+                } catch (JSONException e) {
+                    LOGE(TAG, "Error saving extension options for " + cnString + ".", e);
+                }
             }
         }
-
         mDefaultPreferences.edit()
                 .putString(PREF_ACTIVE_EXTENSIONS, sb.toString())
                 .commit();
@@ -182,27 +215,30 @@ public class ExtensionManager {
     /**
      * Replaces the set of active extensions with the given list.
      */
-    public void setActiveExtensions(List<ComponentName> extensions) {
-        setActiveExtensions(extensions, true);
+    public void setActiveExtensions(List<ComponentName> extensions,
+                                    Map<ComponentName, ExtensionRenderOptions> renderOptionsHashMap) {
+        setActiveExtensions(extensions, renderOptionsHashMap, true);
     }
 
-    private void setActiveExtensions(List<ComponentName> extensionNames, boolean saveAndNotify) {
-        Map<ComponentName, ExtensionListing> listings
-                = new HashMap<ComponentName, ExtensionListing>();
+    private void setActiveExtensions(List<ComponentName> extensionNames,
+                                     Map<ComponentName, ExtensionRenderOptions> renderOptionsHashMap,
+                                     boolean saveAndNotify) {
+        Map<ComponentName, ExtensionListing> listings = new HashMap<ComponentName, ExtensionListing>();
         for (ExtensionListing listing : getAvailableExtensions()) {
             listings.put(listing.componentName, listing);
         }
 
         List<ComponentName> activeExtensionNames = getActiveExtensionNames();
-        if (activeExtensionNames.equals(extensionNames)) {
-            LOGD(TAG, "No change to list of active extensions.");
-            return;
-        }
+        //if (activeExtensionNames.equals(extensionNames)) {
+        //    LOGD(TAG, "No change to list of active extensions.");
+        //    return;
+        //}
 
         // Clear cached data for any no-longer-active extensions.
         for (ComponentName cn : activeExtensionNames) {
             if (!extensionNames.contains(cn)) {
                 destroyExtensionData(cn);
+                destroyExtensionRenderOptions(cn);
             }
         }
 
@@ -210,18 +246,23 @@ public class ExtensionManager {
         List<ExtensionWithData> newActiveExtensions = new ArrayList<ExtensionWithData>();
 
         for (ComponentName cn : extensionNames) {
+            ExtensionWithData ewd;
             if (mExtensionInfoMap.containsKey(cn)) {
-                newActiveExtensions.add(mExtensionInfoMap.get(cn));
+                ewd = mExtensionInfoMap.get(cn);
             } else {
-                ExtensionWithData ewd = new ExtensionWithData();
+                ewd = new ExtensionWithData();
                 ewd.listing = listings.get(cn);
                 if (ewd.listing == null) {
                     ewd.listing = new ExtensionListing();
                     ewd.listing.componentName = cn;
                 }
                 ewd.latestData = deserializeExtensionData(ewd.listing.componentName);
-                newActiveExtensions.add(ewd);
             }
+            ewd.renderOptions = renderOptionsHashMap.get(cn);
+            if (ewd.renderOptions == null)
+                ewd.renderOptions = new ExtensionRenderOptions();
+
+            newActiveExtensions.add(ewd);
         }
 
         mExtensionInfoMap.clear();
@@ -288,6 +329,12 @@ public class ExtensionManager {
                 .commit();
     }
 
+    private void destroyExtensionRenderOptions(ComponentName componentName) {
+        mRenderOptionsPreferences.edit()
+                                 .remove(componentName.flattenToString())
+                                 .commit();
+    }
+
     public List<ExtensionWithData> getActiveExtensionsWithData() {
         ArrayList<ExtensionWithData> activeExtensions;
         synchronized (mActiveExtensions) {
@@ -297,15 +344,31 @@ public class ExtensionManager {
     }
 
     public List<ExtensionWithData> getVisibleExtensionsWithData() {
+        return getVisibleExtensionsWithData(false);
+    }
+
+    public List<ExtensionWithData> getVisibleExtensionsWithData(boolean removeAllwaysCollapsed) {
         ArrayList<ExtensionWithData> visibleExtensions = new ArrayList<ExtensionWithData>();
         synchronized (mActiveExtensions) {
             for (ExtensionManager.ExtensionWithData ewd : mActiveExtensions) {
-                if (ewd.latestData.visible()) {
+                if (ewd.latestData.visible() && !(removeAllwaysCollapsed && ewd.renderOptions.alwaysCollapsed)) {
                     visibleExtensions.add(ewd);
                 }
             }
         }
         return visibleExtensions;
+    }
+
+    public List<ExtensionWithData> getAlwaysCollapsedExtensionsWithData() {
+        ArrayList<ExtensionWithData> collapsedExtensions = new ArrayList<ExtensionWithData>();
+        synchronized (mActiveExtensions) {
+            for (ExtensionManager.ExtensionWithData ewd : mActiveExtensions) {
+                if (ewd.renderOptions.alwaysCollapsed) {
+                    collapsedExtensions.add(ewd);
+                }
+            }
+        }
+        return collapsedExtensions;
     }
 
     public List<ComponentName> getActiveExtensionNames() {
@@ -314,6 +377,15 @@ public class ExtensionManager {
             list.add(ci.listing.componentName);
         }
         return list;
+    }
+
+    public Map<ComponentName, ExtensionRenderOptions> getActiveExtensionsRenderOptions() {
+        Map<ComponentName, ExtensionRenderOptions> activeRenderOptions =
+                new HashMap<ComponentName, ExtensionRenderOptions>();
+        for (ExtensionWithData ewd : mActiveExtensions) {
+            activeRenderOptions.put(ewd.listing.componentName, ewd.renderOptions);
+        }
+        return activeRenderOptions;
     }
 
     /**
@@ -385,6 +457,7 @@ public class ExtensionManager {
     public static class ExtensionWithData {
         public ExtensionListing listing;
         public ExtensionData latestData;
+        public ExtensionRenderOptions renderOptions;
     }
 
     public static class ExtensionListing {
@@ -395,5 +468,29 @@ public class ExtensionManager {
         public String description;
         public Drawable icon;
         public ComponentName settingsActivity;
+    }
+
+    public static class ExtensionRenderOptions {
+        public static final String KEY_ALWAYS_COLLAPSED = "always_collapsed";
+
+        public boolean alwaysCollapsed;
+
+        /**
+         * Serializes the contents of this object to JSON.
+         */
+        public JSONObject serialize() throws JSONException {
+            JSONObject data = new JSONObject();
+            data.put(KEY_ALWAYS_COLLAPSED, alwaysCollapsed);
+            return data;
+        }
+
+        /**
+         * Deserializes the given JSON representation populating this object.
+         */
+        public ExtensionRenderOptions deserialize(JSONObject data) throws JSONException {
+            this.alwaysCollapsed = data.optBoolean(KEY_ALWAYS_COLLAPSED);
+            return this;
+        }
+
     }
 }

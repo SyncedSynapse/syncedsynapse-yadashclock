@@ -52,14 +52,14 @@ public class WidgetRemoteViewsFactoryService extends RemoteViewsService {
         LOGD(TAG, "Instantiating a remote views factory.");
         int target = intent.getIntExtra(EXTRA_TARGET, DashClockRenderer.Options.TARGET_HOME_SCREEN);
         boolean isMini = intent.getBooleanExtra(EXTRA_IS_MINI, false);
-        return new WidgetRemoveViewsFactory(this, target, isMini);
+        return new WidgetRemoteViewsFactory(this, target, isMini);
     }
 
     /**
      * This is the factory that will provide data to the collection widget. Behaves pretty much like
      * an {@link android.widget.Adapter}.
      */
-    class WidgetRemoveViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+    class WidgetRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         private Context mContext;
         private ExtensionManager mExtensionManager;
         private List<ExtensionManager.ExtensionWithData>
@@ -67,7 +67,7 @@ public class WidgetRemoteViewsFactoryService extends RemoteViewsService {
         private int mTarget;
         private boolean mIsMini;
 
-        public WidgetRemoveViewsFactory(Context context, int target, boolean isMini) {
+        public WidgetRemoteViewsFactory(Context context, int target, boolean isMini) {
             mContext = context;
             mTarget = target;
             mIsMini = isMini;
@@ -81,7 +81,8 @@ public class WidgetRemoteViewsFactoryService extends RemoteViewsService {
         }
 
         public void onDataSetChanged() {
-            mVisibleExtensions = mExtensionManager.getVisibleExtensionsWithData();
+            // Get visible extensions which are not always collapsed
+            mVisibleExtensions = mExtensionManager.getVisibleExtensionsWithData(true);
         }
 
         public int getViewTypeCount() {

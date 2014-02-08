@@ -74,8 +74,7 @@ public abstract class DashClockRenderer {
         Resources res = mContext.getResources();
 
         // Load data from extensions
-        List<ExtensionWithData> extensions = mExtensionManager.getActiveExtensionsWithData();
-        int activeExtensions = extensions.size();
+        List<ExtensionWithData> activeExtensions = mExtensionManager.getActiveExtensionsWithData();
 
         // Determine if we're on a tablet or not (lock screen widgets can't be collapsed on
         // tablets).
@@ -116,7 +115,7 @@ public abstract class DashClockRenderer {
         // Step 2. Set the clock shading and show/hide the separator
         vb.setViewBackgroundColor(R.id.clock_row, mOptions.backgroundColor);
         if (!mOptions.showSeparator ||
-            (isExpanded && hideClock) || (!isExpanded && hideClock && (activeExtensions == 0))) {
+            (isExpanded && hideClock) || (!isExpanded && hideClock && (activeExtensions.size() == 0))) {
             vb.setViewVisibility(R.id.card_shadow, View.GONE);
         } else {
             vb.setViewVisibility(R.id.card_shadow, View.VISIBLE);
@@ -148,7 +147,7 @@ public abstract class DashClockRenderer {
                     && mOptions.target != Options.TARGET_HOME_SCREEN;
 
             int clockInnerGravity = Gravity.CENTER_HORIZONTAL;
-            if (activeExtensions > 0 && !forceCentered) {
+            if (activeExtensions.size() > 0 && !forceCentered) {
                 // Extensions are visible, don't center clock
                 if (mOptions.target == Options.TARGET_LOCK_SCREEN) {
                     // lock screen doesn't look at expanded state; the UI should
@@ -161,7 +160,7 @@ public abstract class DashClockRenderer {
             }
             vb.setLinearLayoutGravity(R.id.clock_target, clockInnerGravity);
 
-            boolean clockCentered = activeExtensions == 0 || forceCentered; // left otherwise
+            boolean clockCentered = activeExtensions.size() == 0 || forceCentered; // left otherwise
             vb.setLinearLayoutGravity(R.id.clock_row,
                     clockCentered ? Gravity.CENTER_HORIZONTAL : Gravity.LEFT);
             vb.setViewVisibility(R.id.settings_button_center_displacement,
@@ -191,60 +190,52 @@ public abstract class DashClockRenderer {
         }
 
         // Step 6. Render the extensions (collapsed or expanded)
+        List<ExtensionWithData> alwaysCollapsedExtensions = mExtensionManager.getAlwaysCollapsedExtensionsWithData();
+        List<ExtensionWithData> collapsedExtensions = (!isExpanded) ?
+                activeExtensions : alwaysCollapsedExtensions;
+        if (!isExpanded || (alwaysCollapsedExtensions.size() > 0)) {
+            // Collapsed style
+            vb.setViewVisibility(R.id.collapsed_extensions_container,
+                    collapsedExtensions.size() > 0 ? View.VISIBLE : View.GONE);
+            vb.removeAllViews(R.id.collapsed_extensions_container);
+
+            boolean ellipsisVisible = false;
+            int slotIndex = 0;
+            for (ExtensionWithData ewd : collapsedExtensions) {
+                if (!ewd.latestData.visible()) {
+                    continue;
+                }
+
+                if (slotIndex >= MAX_COLLAPSED_EXTENSIONS) {
+                    ellipsisVisible = true;
+                    break;
+                }
+
+                vb.addView(R.id.collapsed_extensions_container,
+                        renderCollapsedExtension(null, null, false, ewd));
+
+                ++slotIndex;
+            }
+
+            if (ellipsisVisible) {
+                vb.addView(R.id.collapsed_extensions_container,
+                        vb.inflateChildLayout(
+                                R.layout.widget_include_collapsed_ellipsis,
+                                R.id.collapsed_extensions_container));
+                vb.setImageViewBitmap(R.id.collapsed_extension_ellipsis,
+                        Utils.recolorBitmap((BitmapDrawable)
+                                res.getDrawable(R.drawable.collapsed_extension_ellipsis),
+                                mOptions.foregroundColor));
+            }
+        }  else {
+            vb.setViewVisibility(R.id.collapsed_extensions_container, View.GONE);
+        }
+
         if (isExpanded) {
             // Expanded style
             final Intent onClickTemplateIntent = WidgetClickProxyActivity.getTemplate(mContext);
             builderSetExpandedExtensionsAdapter(vb, R.id.expanded_extensions, false,
                     onClickTemplateIntent);
-
-        } else {
-            // Collapsed style
-            vb.setViewVisibility(R.id.collapsed_extensions_container,
-                    activeExtensions > 0 ? View.VISIBLE : View.GONE);
-            vb.removeAllViews(R.id.collapsed_extensions_container);
-
-            // Disabled because list view can't wrap content horizontally, which breaks centering.
-//            if (mOptions.target != Options.TARGET_LOCK_SCREEN) {
-//                // On anything but the lock screen, support vertical scrolling in collapsed mode
-//                vb.addView(R.id.collapsed_extensions_container,
-//                        vb.inflateChildLayout(R.layout.widget_include_collapsed_list,
-//                                R.id.collapsed_extensions_container));
-//
-//                final Intent onClickTemplateIntent = WidgetClickProxyActivity.getTemplate(mContext);
-//                builderSetExpandedExtensionsAdapter(vb, R.id.expanded_extensions, true,
-//                        onClickTemplateIntent);
-//
-//            } else {
-                // On the lock screen, no vertical scrolling.
-                boolean ellipsisVisible = false;
-                int slotIndex = 0;
-                for (ExtensionWithData ewd : extensions) {
-                    if (!ewd.latestData.visible()) {
-                        continue;
-                    }
-
-                    if (slotIndex >= MAX_COLLAPSED_EXTENSIONS) {
-                        ellipsisVisible = true;
-                        break;
-                    }
-
-                    vb.addView(R.id.collapsed_extensions_container,
-                            renderCollapsedExtension(null, null, false, ewd));
-
-                    ++slotIndex;
-                }
-
-                if (ellipsisVisible) {
-                    vb.addView(R.id.collapsed_extensions_container,
-                            vb.inflateChildLayout(
-                                    R.layout.widget_include_collapsed_ellipsis,
-                                    R.id.collapsed_extensions_container));
-                    vb.setImageViewBitmap(R.id.collapsed_extension_ellipsis,
-                            Utils.recolorBitmap((BitmapDrawable)
-                                    res.getDrawable(R.drawable.collapsed_extension_ellipsis),
-                                    mOptions.foregroundColor));
-                }
-//            }
         }
 
         return vb.getRoot();

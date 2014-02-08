@@ -36,13 +36,21 @@
 
             <include layout="@layout/widget_include_clock" />
 
-            <ImageButton android:id="@+id/settings_button"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+            <LinearLayout
+                android:id="@+id/collapsed_extensions_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:src="@drawable/ic_widget_action_settings"
-                android:contentDescription="@string/settings"
-                android:background="?android:selectableItemBackground" />
+                android:layout_marginBottom="8dp"
+                android:orientation="vertical" />
+
+            <ImageButton android:id="@+id/settings_button"
+                         android:layout_width="48dp"
+                         android:layout_height="48dp"
+                         android:layout_marginTop="8dp"
+                         android:src="@drawable/ic_widget_action_settings"
+                         android:contentDescription="@string/settings"
+                         android:background="?android:selectableItemBackground" />
 
         </LinearLayout>
 
