@@ -14,21 +14,11 @@
  * limitations under the License.
  */
 
-buildscript {
-    repositories {
-        maven { url 'http://repo1.maven.org/maven2' }
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:0.7.+'
-    }
-}
+apply plugin: 'com.android.application'
 
-apply plugin: 'android'
-
-project.archivesBaseName = "dashclock"
+//project.archivesBaseName = "dashclock"
 
 repositories {
-    mavenCentral()
     flatDir {
         dirs '../local_aars'
     }
@@ -44,7 +34,7 @@ dependencies {
 }
 
 android {
-    compileSdkVersion 19
+    compileSdkVersion 21
     buildToolsVersion rootProject.ext.buildToolsVersion
 
     def Properties versionProps = new Properties()
@@ -52,7 +42,7 @@ android {
 
     defaultConfig {
         minSdkVersion 17
-        targetSdkVersion 19
+        targetSdkVersion 21
 
         versionName versionProps['name']
         versionCode versionProps['code'].toInteger()
@@ -74,24 +64,28 @@ android {
 
     buildTypes {
         release {
-            runProguard true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), file('proguard-project.txt')
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-project.txt'
             signingConfig signingConfigs.release
         }
 
         publicBeta.initWith(buildTypes.release)
         publicBeta {
-            runProguard true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), file('proguard-project.txt')
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-project.txt'
             versionNameSuffix " Beta " + versionProps['betaNumber']
         }
 
         publicDebug.initWith(buildTypes.publicBeta)
         publicDebug {
             debuggable true
-            runProguard true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), file('proguard-project.txt')
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-project.txt'
             versionNameSuffix " Debug Beta " + versionProps['betaNumber']
         }
+    }
+
+    lintOptions {
+        disable "MissingTranslation", "ExtraTranslation"
     }
 }
